@@ -184,6 +184,12 @@ class ResNet(nn.Module):
                     count += 1
         return val
 
+    def get_global_mp_thre(self, ratio):
+        grp_val = self.get_group_mp()
+        sorted_block_values, indices = torch.sort(grp_val.contiguous().view(-1))
+        thre_index = int(grp_val.data.numel() * ratio)
+        threshold = sorted_block_values[thre_index]
+        return threshold
 
 class resnet18_imagenet_quant:
     base = ResNet
