@@ -30,12 +30,11 @@ class BasicBlock(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, wbit=4, abit=4, alpha_init=10, mode='mean', k=2):
         super(BasicBlock, self).__init__()
-        # self.conv1 = conv3x3(inplanes, planes, stride, nbit=wbit, mode=mode, k=k)
+
         self.conv1 = int_conv2d(inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False, nbit=wbit, mode=mode, k=k)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu1 = ClippedReLU(num_bits=abit, alpha=alpha_init, inplace=True)    # Clipped ReLU function 4 - bits
         
-        # self.conv2 = conv3x3(planes, planes, nbit=wbit, mode=mode, k=k)
         self.conv2 = int_conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False, nbit=wbit, mode=mode, k=k)
         self.bn2 = nn.BatchNorm2d(planes)
         self.relu2 = ClippedReLU(num_bits=abit, alpha=alpha_init, inplace=True)    # Clipped ReLU function 4 - bits
@@ -108,7 +107,6 @@ class ResNet(nn.Module):
         self.conv1 = int_conv2d(3, 64, kernel_size=7, stride=2, padding=3,
                                bias=False, nbit=wbit, mode=mode, k=k)
         self.bn1 = nn.BatchNorm2d(64)
-        # self.relu = nn.ReLU(inplace=True)
         self.relu0 = ClippedReLU(num_bits=abit, alpha=alpha_init, inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0], wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k)
@@ -116,7 +114,6 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k)
         self.avgpool = nn.AvgPool2d(7, stride=1)
-        # self.fc = nn.Linear(512 * block.expansion, num_classes)
         self.fc = int_linear(512*block.expansion, num_classes, nbit=wbit, mode=mode, k=k)
 
         for m in self.modules():
