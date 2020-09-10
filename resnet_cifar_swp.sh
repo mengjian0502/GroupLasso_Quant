@@ -19,7 +19,7 @@ wbit=4
 abit=4
 mode=mean
 k=2
-ratio=0.7
+ratio=0.5
 wd=0.0005
 lr=0.005
 
@@ -32,7 +32,7 @@ pretrained_model="./save/resnet20_quant_w4_a4_modemean_k_lambda_wd0.0005_swpFals
 
 for lambda in $(seq ${lb} ${diff} ${ub})
 do
-save_path="./save/sparsity_analysis/${model}_grp${group_ch}/${model}_w${wbit}_a${abit}_mode${mode}_k${k}_lambda${lambda}_ratio${ratio}_wd${wd}_lr${lr}_swpFalse_groupch${group_ch}_push${push}_lr${lr}_global/"
+save_path="./save/sparsity_analysis/${model}_grp${group_ch}/${model}_w${wbit}_a${abit}_mode${mode}_k${k}_lambda${lambda}_ratio${ratio}_wd${wd}_lr${lr}_swpFalse_groupch${group_ch}_push${push}_lr${lr}/"
 log_file="${model}_w${wbit}_a${abit}_mode${mode}_k${k}_lambda${lambda}_ratio${ratio}_wd${wd}_lr${lr}_swpFalse_groupch${group_ch}_push${push}_lr${lr}.log"
 
 $PYTHON -W ignore train.py --dataset ${dataset} \

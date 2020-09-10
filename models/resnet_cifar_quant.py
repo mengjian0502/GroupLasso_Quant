@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init
 from .quant import ClippedReLU, int_conv2d, int_linear
+from .mpdr_score import get_mpdr_score
 import math
 
 class DownsampleA(nn.Module):
@@ -152,14 +153,72 @@ class CifarResNet(nn.Module):
 
   def get_global_thre(self, ratio):
     grp_val = self.get_group_val()
-    grp_mean = grp_val.mean()
+    # grp_mean = grp_val.mean()
 
-    threshold = ratio * grp_mean
-    # sorted_block_values, indices = torch.sort(grp_val.contiguous().view(-1))
-    # thre_index = int(grp_val.data.numel() * ratio)
-    # threshold = sorted_block_values[thre_index]
+    # threshold = ratio * grp_mean
+    sorted_block_values, indices = torch.sort(grp_val.contiguous().view(-1))
+    thre_index = int(grp_val.data.numel() * ratio)
+    threshold = sorted_block_values[thre_index]
     return threshold
 
+  def get_group_mp(self):
+    val = torch.Tensor()
+
+    if torch.cuda.is_available():
+        val = val.cuda()
+
+    count = 0
+    for m in self.modules():
+      if isinstance(m, int_conv2d):
+        kw = m.weight.size(2)
+        if kw != 1:
+          if not count in [0]:
+            w_l = m.weight
+            num_group = w_l.size(0) * w_l.size(1) // self.ch_group
+            w_l = w_l.view(w_l.size(0), w_l.size(1) // self.ch_group, self.ch_group, kw, kw)
+            w_l = w_l.contiguous().view((num_group, self.ch_group*kw*kw))
+
+            g = w_l.abs().mean(dim=1)
+            val = torch.cat((val.view(-1), g.view(-1)))
+          count += 1
+    return val
+
+  def get_global_mp_thre(self, ratio):
+    grp_val = self.get_group_mp()
+    sorted_block_values, indices = torch.sort(grp_val.contiguous().view(-1))
+    thre_index = int(grp_val.data.numel() * ratio)
+    threshold = sorted_block_values[thre_index]
+    return threshold
+
+  def get_group_mpdr(self):
+    val = torch.Tensor()
+
+    if torch.cuda.is_available():
+        val = val.cuda()
+
+    count = 0
+    for m in self.modules():
+      if isinstance(m, int_conv2d):
+        kw = m.weight.size(2)
+        if kw != 1:
+          if not count in [0]:
+            w_l = get_mpdr_score(m.weight)
+
+            num_group = w_l.size(0) * w_l.size(1) // self.ch_group
+            w_l = w_l.view(w_l.size(0), w_l.size(1) // self.ch_group, self.ch_group, kw, kw)
+            w_l = w_l.contiguous().view((num_group, self.ch_group*kw*kw))
+
+            g = w_l.mean(dim=1)   # compute the mean of the mpdr score
+            val = torch.cat((val.view(-1), g.view(-1)))
+          count += 1
+    return val
+
+  def get_global_mpdr_thre(self, ratio):
+    grp_val = self.get_group_mpdr()
+    sorted_block_values, indices = torch.sort(grp_val.contiguous().view(-1))
+    thre_index = int(grp_val.data.numel() * ratio)
+    threshold = sorted_block_values[thre_index]
+    return threshold
 
 class resnet20_quant:
   base=CifarResNet

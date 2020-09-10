@@ -43,6 +43,15 @@ def glasso_global(var, dim=0, thre=0.0):
 
     return a.sum(), penalty_group.numel()
 
+def glasso_global_mp(var, dim=0, thre=0.0):
+    if len(var.size()) == 4:
+        var = var.contiguous().view((var.size(0), var.size(1) * var.size(2) * var.size(3)))
+
+    a = var.pow(2).sum(dim=dim).pow(1/2)
+    b = var.abs().mean(dim=1)
+
+    penalty_groups = a[b<thre]
+    return penalty_groups.sum(), penalty_groups.numel()
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -142,7 +151,7 @@ def train(trainloader, net, criterion, optimizer, epoch, args):
 
         if args.swp:
             # compute the global threshold
-            thre1 = net.get_global_thre(args.ratio)
+            # thre1 = net.get_global_mp_thre(args.ratio)
             # print(f'global threshold = {thre1:.4f}')
 
             lamda = torch.tensor(args.lamda).cuda()
@@ -165,8 +174,8 @@ def train(trainloader, net, criterion, optimizer, epoch, args):
                             w_l = w_l.view(w_l.size(0), w_l.size(1) // group_ch, group_ch, kw, kw)
                             w_l = w_l.contiguous().view((num_group, group_ch, kw, kw))
                             
-                            # reg1, thre1, penalty_group1 = glasso_thre(w_l, 1, args.ratio)
-                            reg1, penalty_group1 = glasso_global(w_l, dim=1, thre=thre1)
+                            reg1, thre1, penalty_group1 = glasso_thre(w_l, 1, args.ratio)
+                            # reg1, penalty_group1 = glasso_global_mp(w_l, dim=1, thre=thre1)
                             reg_g1 += reg1
                             thre = thre1
                             penalty_group = penalty_group1
@@ -542,7 +551,7 @@ def log2df(log_file_name):
 
 if __name__ == "__main__":
     # clp_alpha = np.load('./save/resnet20/resnet20_quant_w4_a4_modemean_k_lambda_wd0.0001_swpFalse/model_clp_bound.npy')
-    log = log2df('./save/resnet20_quant_grp8/resnet20_quant_w4_a4_modemean_k2_lambda0.0010_ratio0.7_wd0.0005_lr0.01_swpFalse_groupch8_pushFalse_iter4000_g01/resnet20_quant_w4_a4_modemean_k2_lambda0.0010_ratio0.7_wd0.0005_lr0.01_swpFalse_groupch8_pushFalse_iter4000_tmp_g03.log')
+    log = log2df('./save/sparsity_analysis/resnet20_quant_grp8/resnet20_quant_w4_a4_modemean_k2_lambda0.0020_ratio0.5_wd0.0005_lr0.005_swpFalse_groupch8_pushFalse_lr0.005/resnet20_quant_w4_a4_modemean_k2_lambda0.0020_ratio0.5_wd0.0005_lr0.005_swpFalse_groupch8_pushFalse_lr0.005.log')
     epoch = log['ep']
     grp_spar = log['grp_spar']
     ovall_spar = log['ovall_spar']
@@ -558,7 +567,7 @@ if __name__ == "__main__":
     }
 
     variable = pd.DataFrame(table, columns=['epoch','grp_spar','ovall_spar', 'spar_groups', 'penalty_groups'])
-    variable.to_csv('resnet20_quant_w4_a4_modemean_k2_lambda0.0010_ratio0.7_wd0.0005_lr0.01_swpFalse_groupch8_pushFalse_iter4000_tmp_g03.csv', index=False)
+    variable.to_csv('resnet20_quant_w4_a4_modemean_k2_lambda0.0020_ratio0.5_wd0.0005_lr0.005_swpFalse_groupch8_pushFalse_lr0.005_baseline.csv', index=False)
 
     # diff_partial_sum = torch.load("./save/resnet20_quant/resnet20_quant_w4_a4_modemean_k2_lambda0.002_ratio0.7_wd0.0005_lr0.01_swpTrue_groupch16/diff_partial_sum.pt")
     # partial_sum = torch.load("save/resnet20_quant_eval/resnet20_quant_eval_w4_a4_modemean_k2_groupch16_colsize16_cellBit2_adc_prec5/partial_sum.pt")
