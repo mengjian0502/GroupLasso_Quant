@@ -106,9 +106,10 @@ class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000, wbit=4, abit=4, alpha_init=10, mode='mean', k=2, ch_group=16, push=False):
         self.inplanes = 64
         super(ResNet, self).__init__()
-        # self.conv1 = int_conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-        #                        bias=False, nbit=wbit, mode=mode, k=k)
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.ch_group = ch_group
+        self.num_classes = num_classes
+
+        self.conv1 = int_conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False, nbit=wbit, mode=mode, k=k, ch_group=ch_group, push=False)
         self.bn1 = nn.BatchNorm2d(64)
         # self.relu0 = nn.ReLU(inplace=True)
         self.relu0 = ClippedReLU(num_bits=abit, alpha=alpha_init, inplace=True)
@@ -118,8 +119,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k, ch_group=ch_group, push=push)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k, ch_group=ch_group, push=push)
         self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
-        # self.fc = int_linear(512*block.expansion, num_classes, nbit=wbit, mode=mode, k=k, ch_group=ch_group, push=push)
+        self.fc = int_linear(512*block.expansion, num_classes, nbit=wbit, mode=mode, k=k, ch_group=ch_group, push=push)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
