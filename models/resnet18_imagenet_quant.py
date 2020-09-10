@@ -161,6 +161,28 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x
+    
+    def get_group_mp(self):
+        val = torch.Tensor()
+
+        if torch.cuda.is_available():
+            val = val.cuda()
+
+        count = 0
+        for m in self.modules():
+            if isinstance(m, int_conv2d):
+                kw = m.weight.size(2)
+                if kw != 1:
+                    if not count in [0]:
+                        w_l = m.weight
+                        num_group = w_l.size(0) * w_l.size(1) // self.ch_group
+                        w_l = w_l.view(w_l.size(0), w_l.size(1) // self.ch_group, self.ch_group, kw, kw)
+                        w_l = w_l.contiguous().view((num_group, self.ch_group*kw*kw))
+
+                        g = w_l.abs().mean(dim=1)
+                        val = torch.cat((val.view(-1), g.view(-1)))
+                    count += 1
+        return val
 
 
 class resnet18_imagenet_quant:
