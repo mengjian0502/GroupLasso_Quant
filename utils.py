@@ -151,7 +151,7 @@ def train(trainloader, net, criterion, optimizer, epoch, args):
 
         if args.swp:
             # compute the global threshold
-            # thre1 = net.get_global_mp_thre(args.ratio)
+            thre1 = net.module.get_global_mp_thre(args.ratio)
             # print(f'global threshold = {thre1:.4f}')
 
             lamda = torch.tensor(args.lamda).cuda()
@@ -174,8 +174,8 @@ def train(trainloader, net, criterion, optimizer, epoch, args):
                             w_l = w_l.view(w_l.size(0), w_l.size(1) // group_ch, group_ch, kw, kw)
                             w_l = w_l.contiguous().view((num_group, group_ch, kw, kw))
                             
-                            reg1, thre1, penalty_group1 = glasso_thre(w_l, 1, args.ratio)
-                            # reg1, penalty_group1 = glasso_global_mp(w_l, dim=1, thre=thre1)
+                            # reg1, thre1, penalty_group1 = glasso_thre(w_l, 1, args.ratio)
+                            reg1, penalty_group1 = glasso_global_mp(w_l, dim=1, thre=thre1)
                             reg_g1 += reg1
                             thre = thre1
                             penalty_group = penalty_group1

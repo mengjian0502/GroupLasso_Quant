@@ -1,4 +1,4 @@
-PYTHON="/home/li/.conda/envs/pytorch/bin/python"
+PYTHON="/home/ubuntu/anaconda3/envs/neurosim_test/bin/python"
 
 ############ directory to save result #############
 
@@ -9,14 +9,14 @@ fi
 
 model=resnet18_imagenet_quant
 dataset=imagenet
-data_path="/opt/imagenet/imagenet_compressed"
+data_path="~/imagenet/"
 epochs=60
 batch_size=256
 group_ch=16
 wbit=4
 abit=4
-mode=sawb
-lambda=0.001
+mode=mean
+lambda=0.00015
 k=4
 ratio=0.3
 wd=0.0001
@@ -24,7 +24,9 @@ lr=0.01
 
 save_path="./save/resnet18_imagenet/${model}_w${wbit}_a${abit}_mode_${mode}_k${k}_lambda${ub}_wd${wd}_lambda${lambda}_ratio${ratio}_swpTrue/"
 log_file="${model}_w${wbit}_a${abit}_mode${mode}_k${k}_lambda${ub}_wd${wd}_lambda${lambda}_ratio${ratio}_swpTrue.log"
-pretrained_model="./save/resnet18_imagenet/resnet18_w4_a4_swpFalse_symm/model_best.pth.tar"
+pretrained_model="./save/resnet18_imagenet/resnet18_imagenet_quant_w4_a4_mode_mean_k4_lambda_wd0.0001_swpFalse/model_best.pth.tar"
+
+export CUDA_VISIBLE_DEVICES=4,5,6,7
 
 $PYTHON -W ignore train.py --dataset ${dataset} \
     --data_path ${data_path} \

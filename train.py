@@ -154,7 +154,7 @@ def main():
         ])  # here is actually the validation dataset
 
         train_dir = os.path.join(args.data_path, 'train')
-        test_dir = os.path.join(args.data_path, 'val')
+        test_dir = os.path.join(args.data_path, 'val_')
 
         train_data = torchvision.datasets.ImageFolder(train_dir, transform=train_transform)
         test_data = torchvision.datasets.ImageFolder(test_dir, transform=test_transform)
@@ -183,7 +183,7 @@ def main():
         logger.info("=> loading checkpoint '{}'".format(args.resume))
         checkpoint = torch.load(args.resume)
         for k, v in checkpoint['state_dict'].items():
-            name = k
+            name = k[7:]
             new_state_dict[name] = v
         
         state_tmp = net.state_dict()
