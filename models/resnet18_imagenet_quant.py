@@ -1,8 +1,18 @@
 import torch.nn as nn
 import math
+import torch.utils.model_zoo as model_zoo
 from .quant import ClippedReLU, int_conv2d, int_linear
 
 __all__ = ["resnet18_imagenet_quant"]
+
+
+model_urls = {
+    'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
+    'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
+    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
+    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+}
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -18,14 +28,15 @@ def conv3x3_quant(in_planes, out_planes, stride=1, wbit=4, mode='mean', k=2):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, wbit=4, abit=4, alpha_init=10, mode='mean', k=2):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, wbit=4, abit=4, alpha_init=10, mode='mean', k=2, ch_group=16, push=False):
         super(BasicBlock, self).__init__()
-
-        self.conv1 = int_conv2d(inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False, nbit=wbit, mode=mode, k=k)
+        # self.conv1 = conv3x3(inplanes, planes, stride, nbit=wbit, mode=mode, k=k)
+        self.conv1 = int_conv2d(inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False, nbit=wbit, mode=mode, k=k, ch_group=ch_group, push=push)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu1 = ClippedReLU(num_bits=abit, alpha=alpha_init, inplace=True)    # Clipped ReLU function 4 - bits
         
-        self.conv2 = int_conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False, nbit=wbit, mode=mode, k=k)
+        # self.conv2 = conv3x3(planes, planes, nbit=wbit, mode=mode, k=k)
+        self.conv2 = int_conv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False, nbit=wbit, mode=mode, k=k, ch_group=ch_group, push=push)
         self.bn2 = nn.BatchNorm2d(planes)
         self.relu2 = ClippedReLU(num_bits=abit, alpha=alpha_init, inplace=True)    # Clipped ReLU function 4 - bits
         self.downsample = downsample
@@ -91,20 +102,23 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1000, wbit=4, abit=4, alpha_init=10, mode='mean', k=2):
+    def __init__(self, block, layers, num_classes=1000, wbit=4, abit=4, alpha_init=10, mode='mean', k=2, ch_group=16, push=False):
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.conv1 = int_conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False, nbit=wbit, mode=mode, k=k)
+        # self.conv1 = int_conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+        #                        bias=False, nbit=wbit, mode=mode, k=k)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.relu0 = ClippedReLU(num_bits=abit, alpha=alpha_init, inplace=True)
+        self.relu0 = nn.ReLU(inplace=True)
+        # self.relu0 = ClippedReLU(num_bits=abit, alpha=alpha_init, inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0], wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k)
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k)
+        self.layer1 = self._make_layer(block, 64, layers[0], wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k, ch_group=ch_group, push=push)
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k, ch_group=ch_group, push=push)
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k, ch_group=ch_group, push=push)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k, ch_group=ch_group, push=push)
         self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = int_linear(512*block.expansion, num_classes, nbit=wbit, mode=mode, k=k)
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        # self.fc = int_linear(512*block.expansion, num_classes, nbit=wbit, mode=mode, k=k, ch_group=ch_group, push=push)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -114,20 +128,20 @@ class ResNet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def _make_layer(self, block, planes, blocks, stride=1, wbit=4, abit=4, alpha_init=10, mode='mean', k=2):
+    def _make_layer(self, block, planes, blocks, stride=1, wbit=4, abit=4, alpha_init=10, mode='mean', k=2, ch_group=16, push=False):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 int_conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False, nbit=wbit, mode=mode, k=k),
+                          kernel_size=1, stride=stride, bias=False, nbit=wbit, mode=mode, k=k, ch_group=ch_group, push=False),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k))
+        layers.append(block(self.inplanes, planes, stride, downsample, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k, ch_group=ch_group, push=push))
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k))
+            layers.append(block(self.inplanes, planes, wbit=wbit, abit=abit, alpha_init=alpha_init, mode=mode, k=k, ch_group=ch_group, push=push))
 
         return nn.Sequential(*layers)
 
