@@ -32,8 +32,8 @@ pretrained_model="./save/resnet20_quant_w4_a4_modemean_k_lambda_wd0.0005_swpFals
 
 for lambda in $(seq ${lb} ${diff} ${ub})
 do
-save_path="./save/sparsity_analysis/${model}_grp${group_ch}/${model}_w${wbit}_a${abit}_mode${mode}_k${k}_lambda${lambda}_ratio${ratio}_wd${wd}_lr${lr}_swpFalse_groupch${group_ch}_push${push}_lr${lr}/"
-log_file="${model}_w${wbit}_a${abit}_mode${mode}_k${k}_lambda${lambda}_ratio${ratio}_wd${wd}_lr${lr}_swpFalse_groupch${group_ch}_push${push}_lr${lr}.log"
+save_path="./save/sparsity_analysis/${model}_grp${group_ch}/${model}_w${wbit}_a${abit}_mode${mode}_k${k}_lambda${lambda}_ratio${ratio}_wd${wd}_lr${lr}_swpFalse_groupch${group_ch}_push${push}_lr${lr}_global_mp_percentile${ratio}_optim_update1.0/"
+log_file="${model}_w${wbit}_a${abit}_mode${mode}_k${k}_lambda${lambda}_ratio${ratio}_wd${wd}_lr${lr}_swpFalse_groupch${group_ch}_push${push}_lr${lr}_global_mp_percentile${ratio}_optim_update1.0.log"
 
 $PYTHON -W ignore train.py --dataset ${dataset} \
     --data_path ./dataset/ \
@@ -61,5 +61,6 @@ $PYTHON -W ignore train.py --dataset ${dataset} \
     --fine_tune \
     --wbit ${wbit} \
     --abit ${abit} \
-    --col_size ${col_size}
+    --col_size ${col_size} \
+    --lr_scale;
 done

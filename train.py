@@ -89,6 +89,11 @@ parser.add_argument('--col_size', type=int,
                     default=16, help='column size')
 parser.add_argument('--push', type=bool, help='forward push')
 
+# pruning
+parser.add_argument('--lr_scale', dest='lr_scale', action='store_true', help='learning rate scaling')
+parser.add_argument('--optm_upd', type=int, default=10, help='number of epochs between optimizer udpates')
+parser.add_argument('--warmup_ep', type=int, default=10, help='number of warmup epochs')
+
 args = parser.parse_args()
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -183,7 +188,7 @@ def main():
         logger.info("=> loading checkpoint '{}'".format(args.resume))
         checkpoint = torch.load(args.resume)
         for k, v in checkpoint['state_dict'].items():
-            name = k[7:]
+            name = k
             new_state_dict[name] = v
         
         state_tmp = net.state_dict()
@@ -204,8 +209,9 @@ def main():
     net = net.cuda()
     # summary(net, (3,32,32))
     criterion = nn.CrossEntropyLoss().cuda()
-    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    
+    # optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+    optimizer = optim.SGD([{'params': param, 'lr': torch.ones_like(param, requires_grad=False) * args.lr, 'weight_decay': args.weight_decay, 'momentum':args.momentum} for name, param in net.named_parameters()])
+
     # Evaluate
     if args.evaluate:
         # net = inference_prune(net, args)
@@ -238,10 +244,11 @@ def main():
             need_hour, need_mins, need_secs)
         
         current_lr, current_momentum = adjust_learning_rate_schedule(
-            optimizer, epoch, args.gammas, args.schedule, args.lr, args.momentum)
+                                optimizer, epoch, args.gammas, args.schedule, args.lr, args.momentum)
 
-        # currnet_group = adjust_group_schedule(epoch, args.g_multi, args.schedule, args.group_ch)
-        # args.group_ch = currnet_group
+        if args.lr_scale:
+            if (epoch+1) > args.warmup_ep:
+                pass
 
         # Training phase
         train_results = train(trainloader, net, criterion, optimizer, epoch, args)
@@ -255,7 +262,6 @@ def main():
         is_best = test_acc > best_acc
 
         if is_best:
-            # print(f'=> Epoch:{epoch} - Bset acc obtained: {best_acc}, Saving..')
             best_acc = test_acc
 
         state = {
@@ -285,7 +291,6 @@ def main():
             e_time, val_loss, test_acc, best_acc, group_sparsity, overall_sparsity, sparse_groups]
         
         if args.swp:
-            # values += [args.lamda, train_results['penalty_groups'], currnet_group]
             values += [args.lamda, train_results['penalty_groups']]
 
         print_table(values, columns, epoch, logger)

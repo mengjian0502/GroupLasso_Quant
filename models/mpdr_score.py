@@ -14,10 +14,10 @@ def get_mpdr_score(weight):
 
     # normalized weights with appropriate normalizers
     # (i-th normalizer = sqrt(|W|_F^2 - \sum_{j < i} sorted_weight[j]^2))
-    sorted_weight /= (normalizer - weight_square_cumsum).sqrt()
+    sorted_weight /= (normalizer - weight_square_cumsum.cuda()).sqrt()
 
     # rearrange entries to their original potisions
-    score = torch.zeros(weight_square_cumsum.shape)
+    score = torch.zeros(weight_square_cumsum.shape).cuda()
     score[sorted_idx] = sorted_weight
 
     # reshape weight
