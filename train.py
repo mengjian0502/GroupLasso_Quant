@@ -18,6 +18,7 @@ import sys
 import models
 import logging
 from torchsummary import summary
+from quant_optim import CustomSGD
 
 from utils import *
 from collections import OrderedDict
@@ -210,7 +211,10 @@ def main():
     # summary(net, (3,32,32))
     criterion = nn.CrossEntropyLoss().cuda()
     # optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    optimizer = optim.SGD([{'params': param, 'lr': torch.ones_like(param, requires_grad=False) * args.lr, 'weight_decay': args.weight_decay, 'momentum':args.momentum} for name, param in net.named_parameters()])
+    optimizer = CustomSGD([{'params': param, 'lr': torch.ones_like(param, requires_grad=False) * args.lr, 'weight_decay': args.weight_decay, 'momentum':args.momentum} for name, param in net.named_parameters()])
+    
+    # for name, param in net.named_parameters():
+    #     lr = args.lr * torch.ones_like()
 
     # Evaluate
     if args.evaluate:
@@ -248,6 +252,7 @@ def main():
 
         if args.lr_scale:
             if (epoch+1) > args.warmup_ep:
+                # update_optimizer(optimizer)
                 pass
 
         # Training phase

@@ -42,6 +42,7 @@ class CustomSGD(Optimizer):
                 if p.grad is None:
                     continue
                 d_p = p.grad
+                mask = -group['lr'] * torch.ones_like(d_p).cuda()
                 if weight_decay != 0:
                     d_p = d_p.add(p, alpha=weight_decay)
                 if momentum != 0:
@@ -55,7 +56,10 @@ class CustomSGD(Optimizer):
                         d_p = d_p.add(buf, alpha=momentum)
                     else:
                         d_p = buf
-
-                p.add_(d_p, alpha=-group['lr'])
+                d_p = d_p * mask
+                
+                if len(p.size()) == 4 and p.size(1) > 3:
+                    import pdb;pdb.set_trace()
+                p.add_(d_p)
 
         return loss

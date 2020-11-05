@@ -280,6 +280,13 @@ def test(testloader, net, criterion, epoch):
             end = time.time()
     return top1.avg, losses.avg
 
+def update_optimizer(optimizer):
+    for p in optimizer.param_groups:
+        param = p['params'][0]
+        import pdb;pdb.set_trace()
+        if len(param.size()) == 4 and param.size(1) > 3:
+            lr = p['lr']
+
 
 def convert_secs2time(epoch_time):
     need_hour = int(epoch_time / 3600)
